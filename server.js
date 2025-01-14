@@ -48,7 +48,7 @@ app.post('/publish', async (req, res) => {
 
 // Connect to MongoDB
 mongoose
-  .connect('your-mongodb-connection-string', { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect('mongodb+srv://zonegamer528:emq1AD1Uesqk6r2w@star.kihsh.mongodb.net/?retryWrites=true&w=majority&appName=star', { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
     app.listen(3000, () => console.log('Server running on port 3000'));
   })
