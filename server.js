@@ -27,7 +27,6 @@ const itemSchema = new mongoose.Schema({
 
 const Item = mongoose.model('Item', itemSchema);
 
-// Publish an item
 app.post('/publish_item', async (req, res) => {
   try {
     const { steamId, itemId, name, imageUrl, price, details } = req.body;
@@ -50,9 +49,10 @@ app.post('/publish_item', async (req, res) => {
     res.status(200).json({ message: 'Item published successfully.' });
   } catch (err) {
     console.error('Error publishing item:', err);
-    res.status(500).json({ error: 'Failed to publish item.' });
+    res.status(500).json({ error: `Failed to publish item: ${err.message}` });  // Send more detailed error
   }
 });
+
 
 // Get all market items
 app.get('/market_items', async (req, res) => {
