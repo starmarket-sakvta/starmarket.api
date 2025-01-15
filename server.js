@@ -1,8 +1,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors'); // To handle CORS requests
 
 const app = express();
 app.use(express.json());
+app.use(cors()); // Add CORS support
 
 // MongoDB model
 const ItemSchema = new mongoose.Schema({
@@ -18,14 +20,14 @@ const MarketItem = mongoose.model('MarketItem', ItemSchema);
 
 // Publish item to market
 app.post('/publish', async (req, res) => {
-  const { steamId, itemId, price } = req.body;
+  const { steamId, itemId, price, name, imageUrl } = req.body;
 
-  if (!steamId || !itemId || !price) {
+  if (!steamId || !itemId || !price || !name || !imageUrl) {
     return res.status(400).json({ message: 'Invalid request data' });
   }
 
-  // Check if the item is still in the inventory (simplified; implement your own verification logic)
-  const isInInventory = true; // Replace with real check
+  // Replace with actual inventory check logic
+  const isInInventory = true; // Placeholder
   if (!isInInventory) {
     return res.status(400).json({ message: 'Item no longer in inventory' });
   }
@@ -34,21 +36,22 @@ app.post('/publish', async (req, res) => {
     const newItem = new MarketItem({
       steamId,
       itemId,
-      name: 'Item Name', // Replace with actual item name
-      imageUrl: 'Item URL', // Replace with actual item image URL
+      name,
+      imageUrl,
       price,
     });
 
     await newItem.save();
     res.status(200).json({ message: 'Item published successfully!' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
+    console.error('Error publishing item:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
 // Connect to MongoDB
 mongoose
-  .connect('mongodb+srv://zonegamer528:emq1AD1Uesqk6r2w@star.kihsh.mongodb.net/?retryWrites=true&w=majority&appName=star', {
+  .connect('mongodb+srv://zonegamer528:emq1AD1Uesqk6r2w@star.kihsh.mongodb.net/star?retryWrites=true&w=majority', {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
@@ -57,5 +60,5 @@ mongoose
   })
   .catch((err) => {
     console.error('Error connecting to MongoDB:', err);
-    process.exit(1); // Exit the application if the connection fails
+    process.exit(1);
   });
