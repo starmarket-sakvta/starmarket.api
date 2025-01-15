@@ -1,64 +1,70 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors'); // To handle CORS requests
+const bodyParser = require('body-parser');
+const cors = require('cors');
 
 const app = express();
-app.use(express.json());
-app.use(cors()); // Add CORS support
+app.use(bodyParser.json());
+app.use(cors());
 
-// MongoDB model
-const ItemSchema = new mongoose.Schema({
-  steamId: String,
-  itemId: String,
-  name: String,
-  imageUrl: String,
-  price: Number,
-  createdAt: { type: Date, default: Date.now },
+// MongoDB connection string
+const uri = "mongodb+srv://user2:Davaa123@star.kihsh.mongodb.net/?retryWrites=true&w=majority&appName=star";
+
+mongoose
+  .connect(uri)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('Failed to connect to MongoDB:', err));
+
+// Define Item schema
+const itemSchema = new mongoose.Schema({
+  steamId: { type: String, required: true },
+  itemId: { type: String, required: true },
+  name: { type: String, required: true },
+  imageUrl: { type: String, required: true },
+  price: { type: Number, required: true },
+  details: { type: Object, required: true },
 });
 
-const MarketItem = mongoose.model('MarketItem', ItemSchema);
+const Item = mongoose.model('Item', itemSchema);
 
-// Publish item to market
-app.post('/publish', async (req, res) => {
-  const { steamId, itemId, price, name, imageUrl } = req.body;
-
-  if (!steamId || !itemId || !price || !name || !imageUrl) {
-    return res.status(400).json({ message: 'Invalid request data' });
-  }
-
-  // Replace with actual inventory check logic
-  const isInInventory = true; // Placeholder
-  if (!isInInventory) {
-    return res.status(400).json({ message: 'Item no longer in inventory' });
-  }
-
+// Publish an item
+app.post('/publish_item', async (req, res) => {
   try {
-    const newItem = new MarketItem({
+    const { steamId, itemId, name, imageUrl, price, details } = req.body;
+
+    // Validate request
+    if (!steamId || !itemId || !name || !imageUrl || !price || !details) {
+      return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    const newItem = new Item({
       steamId,
       itemId,
       name,
       imageUrl,
       price,
+      details,
     });
 
     await newItem.save();
-    res.status(200).json({ message: 'Item published successfully!' });
-  } catch (error) {
-    console.error('Error publishing item:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(200).json({ message: 'Item published successfully.' });
+  } catch (err) {
+    console.error('Error publishing item:', err);
+    res.status(500).json({ error: `Failed to publish item: ${err.message}` });  // Send more detailed error
   }
 });
 
-// Connect to MongoDB
-mongoose
-  .connect('mongodb+srv://zonegamer528:emq1AD1Uesqk6r2w@star.kihsh.mongodb.net/star?retryWrites=true&w=majority', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    app.listen(3000, () => console.log('Server running on port 3000'));
-  })
-  .catch((err) => {
-    console.error('Error connecting to MongoDB:', err);
-    process.exit(1);
-  });
+
+// Get all market items
+app.get('/market_items', async (req, res) => {
+  try {
+    const items = await Item.find();
+    res.status(200).json(items);
+  } catch (err) {
+    console.error('Error fetching market items:', err);
+    res.status(500).json({ error: 'Failed to fetch items.' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
