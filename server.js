@@ -18,11 +18,9 @@ mongoose
 // Define Item schema
 const itemSchema = new mongoose.Schema({
   steamId: { type: String, required: true },
-  itemId: { type: String, required: true },
   name: { type: String, required: true },
   imageUrl: { type: String, required: true },
-  price: { type: Number, required: true },
-  details: { type: Object, required: true },
+  item: { type: Object, required: true },
 });
 
 const Item = mongoose.model('Item', itemSchema);
@@ -30,30 +28,27 @@ const Item = mongoose.model('Item', itemSchema);
 // Publish an item
 app.post('/publish_item', async (req, res) => {
   try {
-    const { steamId, itemId, name, imageUrl, price, details } = req.body;
+    const { steamId, name, imageUrl, item } = req.body;
 
     // Validate request
-    if (!steamId || !itemId || !name || !imageUrl || !price || !details) {
-      return res.status(400).json({ error: 'All fields are required.' });
+    if (!steamId || !name || !imageUrl || !item) {
+      return res.status(400).json({ error: 'All fields (steamId, name, imageUrl, item) are required.' });
     }
 
     const newItem = new Item({
       steamId,
-      itemId,
       name,
       imageUrl,
-      price,
-      details,
+      item,
     });
 
     await newItem.save();
     res.status(200).json({ message: 'Item published successfully.' });
   } catch (err) {
     console.error('Error publishing item:', err);
-    res.status(500).json({ error: `Failed to publish item: ${err.message}` });  // Send more detailed error
+    res.status(500).json({ error: `Failed to publish item: ${err.message}` });
   }
 });
-
 
 // Get all market items
 app.get('/market_items', async (req, res) => {
