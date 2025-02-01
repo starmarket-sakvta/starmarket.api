@@ -22,7 +22,6 @@ const itemSchema = new mongoose.Schema({
   imageUrl: { type: String, required: true },
   item: { type: Object, required: true },
   price: { type: Number, required: true },
-  published: { type: Boolean, default: false }, // Add published flag
 });
 
 const Item = mongoose.model('Item', itemSchema);
@@ -43,7 +42,6 @@ app.post('/publish_item', async (req, res) => {
       imageUrl,
       item,
       price,
-      published: true, // Set published flag to true
     });
 
     await newItem.save();
@@ -74,7 +72,7 @@ app.put('/change_price/:itemId', async (req, res) => {
     res.status(500).json({ error: 'Failed to change price.' });
   }
 });
-app.delete('/delete_item/:itemId', async (req, res) => {
+app.delete('/remove_item/:itemId', async (req, res) => {
   try {
     const { itemId } = req.params;
 
@@ -84,10 +82,22 @@ app.delete('/delete_item/:itemId', async (req, res) => {
       return res.status(404).json({ error: 'Item not found.' });
     }
 
-    res.status(200).json({ message: 'Item deleted successfully.' });
+    res.status(200).json({ message: 'Item removed successfully.' });
   } catch (err) {
-    console.error('Error deleting item:', err);
-    res.status(500).json({ error: 'Failed to delete item.' });
+    console.error('Error removing item:', err);
+    res.status(500).json({ error: 'Failed to remove item.' });
+  }
+});
+
+app.get('/selling_items/:steamId', async (req, res) => {
+  try {
+    const { steamId } = req.params;
+
+    const items = await Item.find({ steamId });
+    res.status(200).json(items);
+  } catch (err) {
+    console.error('Error fetching selling items:', err);
+    res.status(500).json({ error: 'Failed to fetch selling items.' });
   }
 });
 
