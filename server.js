@@ -21,7 +21,8 @@ const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   imageUrl: { type: String, required: true },
   item: { type: Object, required: true },
-  price: { type: Number, required: true }, // Add price field
+  price: { type: Number, required: true },
+  published: { type: Boolean, default: false }, // Add published flag
 });
 
 const Item = mongoose.model('Item', itemSchema);
@@ -41,7 +42,8 @@ app.post('/publish_item', async (req, res) => {
       name,
       imageUrl,
       item,
-      price, // Add price to the new item
+      price,
+      published: true, // Set published flag to true
     });
 
     await newItem.save();
@@ -49,6 +51,43 @@ app.post('/publish_item', async (req, res) => {
   } catch (err) {
     console.error('Error publishing item:', err);
     res.status(500).json({ error: `Failed to publish item: ${err.message}` });
+  }
+});
+app.put('/change_price/:itemId', async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { price } = req.body;
+
+    const updatedItem = await Item.findByIdAndUpdate(
+      itemId,
+      { price },
+      { new: true },
+    );
+
+    if (!updatedItem) {
+      return res.status(404).json({ error: 'Item not found.' });
+    }
+
+    res.status(200).json(updatedItem);
+  } catch (err) {
+    console.error('Error changing price:', err);
+    res.status(500).json({ error: 'Failed to change price.' });
+  }
+});
+app.delete('/delete_item/:itemId', async (req, res) => {
+  try {
+    const { itemId } = req.params;
+
+    const deletedItem = await Item.findByIdAndDelete(itemId);
+
+    if (!deletedItem) {
+      return res.status(404).json({ error: 'Item not found.' });
+    }
+
+    res.status(200).json({ message: 'Item deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting item:', err);
+    res.status(500).json({ error: 'Failed to delete item.' });
   }
 });
 
