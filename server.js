@@ -21,6 +21,7 @@ const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   imageUrl: { type: String, required: true },
   item: { type: Object, required: true },
+  price: { type: Number, required: true }, // Add price field
 });
 
 const Item = mongoose.model('Item', itemSchema);
@@ -28,11 +29,11 @@ const Item = mongoose.model('Item', itemSchema);
 // Publish an item
 app.post('/publish_item', async (req, res) => {
   try {
-    const { steamId, name, imageUrl, item } = req.body;
+    const { steamId, name, imageUrl, item, price } = req.body;
 
     // Validate request
-    if (!steamId || !name || !imageUrl || !item) {
-      return res.status(400).json({ error: 'All fields (steamId, name, imageUrl, item) are required.' });
+    if (!steamId || !name || !imageUrl || !item || !price) {
+      return res.status(400).json({ error: 'All fields (steamId, name, imageUrl, item, price) are required.' });
     }
 
     const newItem = new Item({
@@ -40,6 +41,7 @@ app.post('/publish_item', async (req, res) => {
       name,
       imageUrl,
       item,
+      price, // Add price to the new item
     });
 
     await newItem.save();
