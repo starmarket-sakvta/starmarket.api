@@ -17,7 +17,7 @@ mongoose
 
 // Item Schema
 const itemSchema = new mongoose.Schema({
-  steamId: { type: String, required: true },
+  steamId: { type: String, required: true, unique: true },
   itemId: { type: String, required: true, unique: true }, // Unique item identifier
   name: { type: String, required: true },
   imageUrl: { type: String, required: true },
