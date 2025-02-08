@@ -18,7 +18,7 @@ mongoose
 // Item Schema
 const itemSchema = new mongoose.Schema({
   steamId: { type: String, required: true },
-  itemId: { type: String, required: true, unique: true }, // Unique item identifier
+  itemId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   imageUrl: { type: String, required: true },
   item: { type: Object, required: true },
@@ -27,27 +27,29 @@ const itemSchema = new mongoose.Schema({
 
 const Item = mongoose.model('Item', itemSchema);
 
+// Balance Schema
+const balanceSchema = new mongoose.Schema({
+  steamId: { type: String, required: true, unique: true },
+  balance: { type: Number, default: 0 },
+});
+
+const Balance = mongoose.model('Balance', balanceSchema);
+
+// Publish an item
 app.post('/publish_item', async (req, res) => {
   try {
-    console.log("Received Data:", req.body); // Debugging log
-
     const { steamId, itemId, name, imageUrl, item, price } = req.body;
-
     if (!steamId || !itemId || !name || !imageUrl || !item || !price || isNaN(price) || price <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid or missing fields.' });
     }
-
     const existingItem = await Item.findOne({ itemId });
     if (existingItem) {
       return res.status(400).json({ success: false, message: 'Item is already published.' });
     }
-
     const newItem = new Item({ steamId, itemId, name, imageUrl, item, price });
     await newItem.save();
-
     res.status(200).json({ success: true, message: 'Item published successfully.' });
   } catch (err) {
-    console.error('Error publishing item:', err);
     res.status(500).json({ success: false, message: 'Failed to publish item.' });
   }
 });
@@ -57,24 +59,17 @@ app.put('/change_price/:itemId', async (req, res) => {
   try {
     const { itemId } = req.params;
     const { price } = req.body;
-
     const updatedItem = await Item.findOneAndUpdate(
       { itemId },
       { price },
       { new: true }
     );
-
-    if (!updatedItem) {
-      return res.status(404).json({ error: 'Item not found.' });
-    }
-
+    if (!updatedItem) return res.status(404).json({ error: 'Item not found.' });
     res.status(200).json(updatedItem);
   } catch (err) {
-    console.error('Error changing price:', err);
     res.status(500).json({ error: 'Failed to change price.' });
   }
 });
-
 // Remove an item
 app.delete('/remove_item/:itemId', async (req, res) => {
   try {
@@ -114,6 +109,52 @@ app.get('/market_items', async (req, res) => {
   } catch (err) {
     console.error('Error fetching market items:', err);
     res.status(500).json({ error: 'Failed to fetch items.' });
+  }
+});
+
+// Balance management
+app.post('/deposit', async (req, res) => {
+  try {
+    const { steamId, amount } = req.body;
+    if (!steamId || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid deposit request.' });
+    }
+    const balance = await Balance.findOneAndUpdate(
+      { steamId },
+      { $inc: { balance: amount } },
+      { new: true, upsert: true }
+    );
+    res.status(200).json(balance);
+  } catch (err) {
+    res.status(500).json({ error: 'Deposit failed.' });
+  }
+});
+
+app.post('/withdraw', async (req, res) => {
+  try {
+    const { steamId, amount } = req.body;
+    if (!steamId || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid withdrawal request.' });
+    }
+    const userBalance = await Balance.findOne({ steamId });
+    if (!userBalance || userBalance.balance < amount) {
+      return res.status(400).json({ error: 'Insufficient balance.' });
+    }
+    userBalance.balance -= amount;
+    await userBalance.save();
+    res.status(200).json(userBalance);
+  } catch (err) {
+    res.status(500).json({ error: 'Withdrawal failed.' });
+  }
+});
+
+app.get('/balance/:steamId', async (req, res) => {
+  try {
+    const { steamId } = req.params;
+    const balance = await Balance.findOne({ steamId });
+    res.status(200).json(balance || { steamId, balance: 0 });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve balance.' });
   }
 });
 
