@@ -24,6 +24,7 @@ const itemSchema = new mongoose.Schema({
   imageUrl: { type: String, required: true },
   item: { type: Object, required: true },
   price: { type: Number, required: true },
+  balance: { type: Number, default: 0 },
 });
 
 const Item = mongoose.model('Item', itemSchema);
