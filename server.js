@@ -2,7 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const User = require("./models/User");
 
 const app = express();
 app.use(bodyParser.json());
@@ -18,13 +17,12 @@ mongoose
 
 // Item Schema
 const itemSchema = new mongoose.Schema({
-  steamId: { type: String, required: true, unique: true },
+  steamId: { type: String, required: true },
   itemId: { type: String, required: true, unique: true }, // Unique item identifier
   name: { type: String, required: true },
   imageUrl: { type: String, required: true },
   item: { type: Object, required: true },
   price: { type: Number, required: true },
-  balance: { type: Number, default: 0 },
 });
 
 const Item = mongoose.model('Item', itemSchema);
@@ -118,53 +116,7 @@ app.get('/market_items', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch items.' });
   }
 });
-// Get user balance
-router.get("/balance/:steamId", async (req, res) => {
-    try {
-        const user = await User.findOne({ steamId: req.params.steamId });
-        if (!user) return res.status(404).json({ message: "User not found" });
-        res.json({ balance: user.balance });
-    } catch (error) {
-        res.status(500).json({ message: "Server error" });
-    }
-});
 
-// Add balance (Deposit)
-router.post("/balance/deposit", async (req, res) => {
-    try {
-        const { steamId, amount } = req.body;
-        if (amount <= 0) return res.status(400).json({ message: "Invalid amount" });
-
-        const user = await User.findOneAndUpdate(
-            { steamId },
-            { $inc: { balance: amount } },
-            { new: true, upsert: true }
-        );
-        res.json({ message: "Deposit successful", balance: user.balance });
-    } catch (error) {
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-// Deduct balance (Purchase or Withdrawal)
-router.post("/balance/deduct", async (req, res) => {
-    try {
-        const { steamId, amount } = req.body;
-        if (amount <= 0) return res.status(400).json({ message: "Invalid amount" });
-
-        const user = await User.findOne({ steamId });
-        if (!user || user.balance < amount) {
-            return res.status(400).json({ message: "Insufficient balance" });
-        }
-
-        user.balance -= amount;
-        await user.save();
-
-        res.json({ message: "Transaction successful", balance: user.balance });
-    } catch (error) {
-        res.status(500).json({ message: "Server error" });
-    }
-});
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
