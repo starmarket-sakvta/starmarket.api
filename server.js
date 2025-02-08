@@ -7,7 +7,7 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
-// MongoDB connection string
+// MongoDB connection
 const uri = "mongodb+srv://user2:Davaa123@star.kihsh.mongodb.net/?retryWrites=true&w=majority&appName=star";
 
 mongoose
@@ -15,9 +15,10 @@ mongoose
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('Failed to connect to MongoDB:', err));
 
-// Define Item schema
+// Item Schema
 const itemSchema = new mongoose.Schema({
   steamId: { type: String, required: true },
+  itemId: { type: String, required: true, unique: true }, // Unique item identifier
   name: { type: String, required: true },
   imageUrl: { type: String, required: true },
   item: { type: Object, required: true },
@@ -29,37 +30,37 @@ const Item = mongoose.model('Item', itemSchema);
 // Publish an item
 app.post('/publish_item', async (req, res) => {
   try {
-    const { steamId, name, imageUrl, item, price } = req.body;
+    const { steamId, itemId, name, imageUrl, item, price } = req.body;
 
-    // Validate request
-    if (!steamId || !name || !imageUrl || !item || !price) {
-      return res.status(400).json({ error: 'All fields (steamId, name, imageUrl, item, price) are required.' });
+    if (!steamId || !itemId || !name || !imageUrl || !item || !price) {
+      return res.status(400).json({ error: 'All fields are required.' });
     }
 
-    const newItem = new Item({
-      steamId,
-      name,
-      imageUrl,
-      item,
-      price,
-    });
+    const existingItem = await Item.findOne({ itemId });
+    if (existingItem) {
+      return res.status(400).json({ error: 'Item is already published.' });
+    }
 
+    const newItem = new Item({ steamId, itemId, name, imageUrl, item, price });
     await newItem.save();
+
     res.status(200).json({ message: 'Item published successfully.' });
   } catch (err) {
     console.error('Error publishing item:', err);
-    res.status(500).json({ error: `Failed to publish item: ${err.message}` });
+    res.status(500).json({ error: 'Failed to publish item.' });
   }
 });
+
+// Change price of an item
 app.put('/change_price/:itemId', async (req, res) => {
   try {
     const { itemId } = req.params;
     const { price } = req.body;
 
-    const updatedItem = await Item.findByIdAndUpdate(
-      itemId,
+    const updatedItem = await Item.findOneAndUpdate(
+      { itemId },
       { price },
-      { new: true },
+      { new: true }
     );
 
     if (!updatedItem) {
@@ -72,11 +73,13 @@ app.put('/change_price/:itemId', async (req, res) => {
     res.status(500).json({ error: 'Failed to change price.' });
   }
 });
+
+// Remove an item
 app.delete('/remove_item/:itemId', async (req, res) => {
   try {
     const { itemId } = req.params;
 
-    const deletedItem = await Item.findByIdAndDelete(itemId);
+    const deletedItem = await Item.findOneAndDelete({ itemId });
 
     if (!deletedItem) {
       return res.status(404).json({ error: 'Item not found.' });
@@ -89,6 +92,7 @@ app.delete('/remove_item/:itemId', async (req, res) => {
   }
 });
 
+// Get selling items of a user
 app.get('/selling_items/:steamId', async (req, res) => {
   try {
     const { steamId } = req.params;
@@ -111,26 +115,7 @@ app.get('/market_items', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch items.' });
   }
 });
-app.post("/publishItem", async (req, res) => {
-  const { steamId, itemId } = req.body;
 
-  try {
-    await db.collection("publishedItems").insertOne({ steamId, itemId });
-    res.status(200).json({ message: "Item published successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to publish item" });
-  }
-});
-app.post("/publishItem", async (req, res) => {
-  const { steamId, itemId } = req.body;
-
-  try {
-    await db.collection("publishedItems").insertOne({ steamId, itemId });
-    res.status(200).json({ message: "Item published successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to publish item" });
-  }
-});
-
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
