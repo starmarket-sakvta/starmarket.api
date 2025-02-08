@@ -111,6 +111,26 @@ app.get('/market_items', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch items.' });
   }
 });
+app.post("/publishItem", async (req, res) => {
+  const { steamId, itemId } = req.body;
+
+  try {
+    await db.collection("publishedItems").insertOne({ steamId, itemId });
+    res.status(200).json({ message: "Item published successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to publish item" });
+  }
+});
+app.post("/publishItem", async (req, res) => {
+  const { steamId, itemId } = req.body;
+
+  try {
+    await db.collection("publishedItems").insertOne({ steamId, itemId });
+    res.status(200).json({ message: "Item published successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to publish item" });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
