@@ -27,27 +27,28 @@ const itemSchema = new mongoose.Schema({
 
 const Item = mongoose.model('Item', itemSchema);
 
-// Publish an item
 app.post('/publish_item', async (req, res) => {
   try {
+    console.log("Received Data:", req.body); // Debugging log
+
     const { steamId, itemId, name, imageUrl, item, price } = req.body;
 
-    if (!steamId || !itemId || !name || !imageUrl || !item || !price) {
-      return res.status(400).json({ error: 'All fields are required.' });
+    if (!steamId || !itemId || !name || !imageUrl || !item || !price || isNaN(price) || price <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing fields.' });
     }
 
     const existingItem = await Item.findOne({ itemId });
     if (existingItem) {
-      return res.status(400).json({ error: 'Item is already published.' });
+      return res.status(400).json({ success: false, message: 'Item is already published.' });
     }
 
     const newItem = new Item({ steamId, itemId, name, imageUrl, item, price });
     await newItem.save();
 
-    res.status(200).json({ message: 'Item published successfully.' });
+    res.status(200).json({ success: true, message: 'Item published successfully.' });
   } catch (err) {
     console.error('Error publishing item:', err);
-    res.status(500).json({ error: 'Failed to publish item.' });
+    res.status(500).json({ success: false, message: 'Failed to publish item.' });
   }
 });
 
