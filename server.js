@@ -15,13 +15,15 @@ mongoose
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('Failed to connect to MongoDB:', err));
 
-// Item Schema
+// Item Schema with an additional "published" field.
+// When an item is published, we store it in this collection.
 const itemSchema = new mongoose.Schema({
   steamId: { type: String, required: true },
-  assetId: { type: String, required: true, unique: true }, // FIX: Renamed itemId to assetId
+  assetId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   imageUrl: { type: String, required: true },
   price: { type: Number, required: true },
+  published: { type: Boolean, default: true },
 });
 
 const Item = mongoose.model('Item', itemSchema);
@@ -34,24 +36,22 @@ const balanceSchema = new mongoose.Schema({
 
 const Balance = mongoose.model('Balance', balanceSchema);
 
-// Publish an item
+// Publish an item: Only publish if it doesn't already exist.
 app.post('/publish_item', async (req, res) => {
   try {
-    const { steamId, assetId, name, imageUrl, price } = req.body; // FIX: Use assetId instead of itemId
-
+    const { steamId, assetId, name, imageUrl, price } = req.body;
     if (!steamId || !assetId || !name || !imageUrl || isNaN(price) || price <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid or missing fields.' });
     }
-
-    const existingItem = await Item.findOne({ assetId }); // FIX: Search by assetId
+    const existingItem = await Item.findOne({ assetId });
     if (existingItem) {
       return res.status(400).json({ success: false, message: 'Item is already published.' });
     }
-
-    const newItem = new Item({ steamId, assetId, name, imageUrl, price });
+    const newItem = new Item({ steamId, assetId, name, imageUrl, price, published: true });
     await newItem.save();
     res.status(200).json({ success: true, message: 'Item published successfully.' });
   } catch (err) {
+    console.error('Publish error:', err);
     res.status(500).json({ success: false, message: 'Failed to publish item.' });
   }
 });
@@ -59,18 +59,18 @@ app.post('/publish_item', async (req, res) => {
 // Change price of an item
 app.put('/change_price/:assetId', async (req, res) => {
   try {
-    const { assetId } = req.params; // FIX: Use assetId instead of itemId
+    const { assetId } = req.params;
     const { price } = req.body;
-
     const updatedItem = await Item.findOneAndUpdate(
-      { assetId }, // FIX: Search by assetId
+      { assetId },
       { price },
       { new: true }
     );
-
-    if (!updatedItem) return res.status(404).json({ error: 'Item not found.' });
+    if (!updatedItem)
+      return res.status(404).json({ error: 'Item not found.' });
     res.status(200).json(updatedItem);
   } catch (err) {
+    console.error('Change price error:', err);
     res.status(500).json({ error: 'Failed to change price.' });
   }
 });
@@ -78,14 +78,11 @@ app.put('/change_price/:assetId', async (req, res) => {
 // Remove an item
 app.delete('/remove_item/:assetId', async (req, res) => {
   try {
-    const { assetId } = req.params; // FIX: Use assetId instead of itemId
-
-    const deletedItem = await Item.findOneAndDelete({ assetId }); // FIX: Search by assetId
-
+    const { assetId } = req.params;
+    const deletedItem = await Item.findOneAndDelete({ assetId });
     if (!deletedItem) {
       return res.status(404).json({ error: 'Item not found.' });
     }
-
     res.status(200).json({ message: 'Item removed successfully.' });
   } catch (err) {
     console.error('Error removing item:', err);
@@ -93,12 +90,12 @@ app.delete('/remove_item/:assetId', async (req, res) => {
   }
 });
 
-// Get selling items of a user
+// Get selling (i.e. published) items for a specific user.
 app.get('/selling_items/:steamId', async (req, res) => {
   try {
     const { steamId } = req.params;
-
-    const items = await Item.find({ steamId });
+    // Return only published items
+    const items = await Item.find({ steamId, published: true });
     res.status(200).json(items);
   } catch (err) {
     console.error('Error fetching selling items:', err);
@@ -109,7 +106,7 @@ app.get('/selling_items/:steamId', async (req, res) => {
 // Get all market items
 app.get('/market_items', async (req, res) => {
   try {
-    const items = await Item.find();
+    const items = await Item.find({ published: true });
     res.status(200).json(items);
   } catch (err) {
     console.error('Error fetching market items:', err);
@@ -117,7 +114,7 @@ app.get('/market_items', async (req, res) => {
   }
 });
 
-// Balance management
+// Balance management endpoints remain unchanged.
 app.post('/deposit', async (req, res) => {
   try {
     const { steamId, amount } = req.body;
@@ -131,6 +128,7 @@ app.post('/deposit', async (req, res) => {
     );
     res.status(200).json(balance);
   } catch (err) {
+    console.error('Deposit error:', err);
     res.status(500).json({ error: 'Deposit failed.' });
   }
 });
@@ -149,6 +147,7 @@ app.post('/withdraw', async (req, res) => {
     await userBalance.save();
     res.status(200).json(userBalance);
   } catch (err) {
+    console.error('Withdrawal error:', err);
     res.status(500).json({ error: 'Withdrawal failed.' });
   }
 });
@@ -159,6 +158,7 @@ app.get('/balance/:steamId', async (req, res) => {
     const balance = await Balance.findOne({ steamId });
     res.status(200).json(balance || { steamId, balance: 0 });
   } catch (err) {
+    console.error('Balance fetch error:', err);
     res.status(500).json({ error: 'Failed to retrieve balance.' });
   }
 });
