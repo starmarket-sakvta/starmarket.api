@@ -15,8 +15,7 @@ mongoose
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('Failed to connect to MongoDB:', err));
 
-// Item Schema with an additional "published" field.
-// When an item is published, we store it in this collection.
+// Item Schema
 const itemSchema = new mongoose.Schema({
   steamId: { type: String, required: true },
   assetId: { type: String, required: true, unique: true },
@@ -28,7 +27,7 @@ const itemSchema = new mongoose.Schema({
 
 const Item = mongoose.model('Item', itemSchema);
 
-// Balance Schema
+// Balance Schema (This model is used for storing user balances)
 const balanceSchema = new mongoose.Schema({
   steamId: { type: String, required: true, unique: true },
   balance: { type: Number, default: 0 },
@@ -89,22 +88,23 @@ app.delete('/remove_item/:assetId', async (req, res) => {
     res.status(500).json({ error: 'Failed to remove item.' });
   }
 });
-// ✅ Update User Balance
-router.post("/update_balance", async (req, res) => {
-  try {
-    const { userId, newBalance } = req.body;
 
-    // Find the user
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found." });
+// ✅ Update User Balance (Using Balance model)
+app.post('/update_balance', async (req, res) => {
+  try {
+    const { steamId, newBalance } = req.body;
+
+    // Find the user's balance document
+    const userBalance = await Balance.findOne({ steamId });
+    if (!userBalance) {
+      return res.status(404).json({ error: "User balance not found." });
     }
 
     // Update balance
-    user.balance = newBalance;
-    await user.save();
+    userBalance.balance = newBalance;
+    await userBalance.save();
 
-    res.json({ message: "Balance updated successfully", newBalance: user.balance });
+    res.json({ message: "Balance updated successfully", newBalance: userBalance.balance });
   } catch (err) {
     res.status(500).json({ error: "Failed to update balance." });
   }
