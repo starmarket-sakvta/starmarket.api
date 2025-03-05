@@ -89,6 +89,26 @@ app.delete('/remove_item/:assetId', async (req, res) => {
     res.status(500).json({ error: 'Failed to remove item.' });
   }
 });
+// ✅ Update User Balance
+router.post("/update_balance", async (req, res) => {
+  try {
+    const { userId, newBalance } = req.body;
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    // Update balance
+    user.balance = newBalance;
+    await user.save();
+
+    res.json({ message: "Balance updated successfully", newBalance: user.balance });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update balance." });
+  }
+});
 
 // Get selling (i.e. published) items for a specific user.
 app.get('/selling_items/:steamId', async (req, res) => {
