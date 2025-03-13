@@ -27,13 +27,26 @@ const itemSchema = new mongoose.Schema({
 
 const Item = mongoose.model('Item', itemSchema);
 
-// Balance Schema (This model is used for storing user balances)
 const balanceSchema = new mongoose.Schema({
   steamId: { type: String, required: true, unique: true },
   balance: { type: Number, default: 0 },
 });
 
+const transactionSchema = new mongoose.Schema({
+  type: { type: String, enum: ['deposit', 'withdrawal', 'purchase', 'sale'], required: true },
+  amount: { type: Number, required: true },
+  status: { type: String, enum: ['pending', 'completed', 'failed'], default: 'completed' },
+  timestamp: { type: Date, default: Date.now }
+});
+
+const balanceSchema = new mongoose.Schema({
+  steamId: { type: String, required: true, unique: true },
+  balance: { type: Number, default: 0 },
+  transactions: [transactionSchema] // New field to track transactions
+});
+
 const Balance = mongoose.model('Balance', balanceSchema);
+
 
 // Publish an item: Only publish if it doesn't already exist.
 app.post('/publish_item', async (req, res) => {
@@ -89,26 +102,41 @@ app.delete('/remove_item/:assetId', async (req, res) => {
   }
 });
 
-// ✅ Update User Balance (Using Balance model)
-app.post('/update_balance', async (req, res) => {
+app.post('/buy', async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { steamId, newBalance } = req.body;
+    const { buyerId, sellerId, itemId, price } = req.body;
 
-    // Find the user's balance document
-    const userBalance = await Balance.findOne({ steamId });
-    if (!userBalance) {
-      return res.status(404).json({ error: "User balance not found." });
-    }
+    const buyer = await Balance.findOne({ steamId: buyerId }).session(session);
+    const seller = await Balance.findOne({ steamId: sellerId }).session(session);
 
-    // Update balance
-    userBalance.balance = newBalance;
-    await userBalance.save();
+    if (!buyer || !seller) throw new Error('User not found');
+    if (buyer.balance < price) throw new Error('Insufficient balance');
 
-    res.json({ message: "Balance updated successfully", newBalance: userBalance.balance });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to update balance." });
+    // 🔸 Deduct from buyer
+    buyer.balance -= price;
+    buyer.transactions.push({ type: 'purchase', amount: price, status: 'completed' });
+
+    // 🔸 Add to seller
+    seller.balance += price;
+    seller.transactions.push({ type: 'sale', amount: price, status: 'completed' });
+
+    await buyer.save({ session });
+    await seller.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({ message: 'Purchase successful', buyerBalance: buyer.balance, sellerBalance: seller.balance });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(400).json({ error: error.message });
   }
 });
+
 
 // Get selling (i.e. published) items for a specific user.
 app.get('/selling_items/:steamId', async (req, res) => {
@@ -134,54 +162,56 @@ app.get('/market_items', async (req, res) => {
   }
 });
 
-// Balance management endpoints remain unchanged.
+// 🔹 Secure Deposit Money (Manual for Now)
 app.post('/deposit', async (req, res) => {
   try {
     const { steamId, amount } = req.body;
-    if (!steamId || isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ error: 'Invalid deposit request.' });
-    }
-    const balance = await Balance.findOneAndUpdate(
+    if (!steamId || amount <= 0) return res.status(400).json({ error: 'Invalid deposit amount' });
+
+    const userBalance = await Balance.findOneAndUpdate(
       { steamId },
-      { $inc: { balance: amount } },
+      { $inc: { balance: amount }, $push: { transactions: { type: 'deposit', amount, status: 'completed' } } },
       { new: true, upsert: true }
     );
-    res.status(200).json(balance);
+
+    res.status(200).json({ message: 'Deposit successful', balance: userBalance.balance });
   } catch (err) {
-    console.error('Deposit error:', err);
-    res.status(500).json({ error: 'Deposit failed.' });
+    res.status(500).json({ error: 'Deposit failed' });
   }
 });
 
+// 🔹 Secure Withdrawal Request (Manual for Now)
 app.post('/withdraw', async (req, res) => {
   try {
     const { steamId, amount } = req.body;
-    if (!steamId || isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ error: 'Invalid withdrawal request.' });
-    }
+    if (!steamId || amount <= 0) return res.status(400).json({ error: 'Invalid withdrawal amount' });
+
     const userBalance = await Balance.findOne({ steamId });
-    if (!userBalance || userBalance.balance < amount) {
-      return res.status(400).json({ error: 'Insufficient balance.' });
-    }
+    if (!userBalance || userBalance.balance < amount) return res.status(400).json({ error: 'Insufficient balance' });
+
+    // Deduct balance but mark transaction as "pending" for manual approval
     userBalance.balance -= amount;
+    userBalance.transactions.push({ type: 'withdrawal', amount, status: 'pending' });
+
     await userBalance.save();
-    res.status(200).json(userBalance);
+    res.status(200).json({ message: 'Withdrawal requested', balance: userBalance.balance });
   } catch (err) {
-    console.error('Withdrawal error:', err);
-    res.status(500).json({ error: 'Withdrawal failed.' });
+    res.status(500).json({ error: 'Withdrawal failed' });
   }
 });
 
+
 app.get('/balance/:steamId', async (req, res) => {
   try {
-    const { steamId } = req.params;
-    const balance = await Balance.findOne({ steamId });
-    res.status(200).json(balance || { steamId, balance: 0 });
+    const userBalance = await Balance.findOne({ steamId: req.params.steamId });
+    if (!userBalance) return res.status(404).json({ error: 'User not found' });
+
+    res.json({ balance: userBalance.balance, transactions: userBalance.transactions });
   } catch (err) {
-    console.error('Balance fetch error:', err);
     res.status(500).json({ error: 'Failed to retrieve balance.' });
   }
 });
+
 
 // Start server
 const PORT = process.env.PORT || 3000;
