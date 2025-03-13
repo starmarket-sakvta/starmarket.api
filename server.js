@@ -27,11 +27,6 @@ const itemSchema = new mongoose.Schema({
 
 const Item = mongoose.model('Item', itemSchema);
 
-const balanceSchema = new mongoose.Schema({
-  steamId: { type: String, required: true, unique: true },
-  balance: { type: Number, default: 0 },
-});
-
 const transactionSchema = new mongoose.Schema({
   type: { type: String, enum: ['deposit', 'withdrawal', 'purchase', 'sale'], required: true },
   amount: { type: Number, required: true },
