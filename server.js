@@ -206,6 +206,47 @@ app.get('/balance/:steamId', async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve balance.' });
   }
 });
+// 🔒 User Schema (newly added)
+const userSchema = new mongoose.Schema({
+  steamId: { type: String, required: true, unique: true },
+  tradeUrl: { type: String, default: "" },
+  apiKey: { type: String, default: "" },
+  email: { type: String, default: "" },
+  bankAccount: { type: String, default: "" }
+});
+
+const User = mongoose.model('User', userSchema);
+
+// 🔹 Get user data
+app.get('/user/:steamId', async (req, res) => {
+  try {
+    const user = await User.findOne({ steamId: req.params.steamId });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error fetching user data' });
+  }
+});
+
+// 🔹 Update user data
+app.put('/user/update', async (req, res) => {
+  try {
+    const { steamId, tradeUrl, apiKey, email, bankAccount } = req.body;
+    if (!steamId) return res.status(400).json({ error: 'Steam ID required.' });
+
+    const updatedUser = await User.findOneAndUpdate(
+      { steamId },
+      { tradeUrl, apiKey, email, bankAccount },
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({ message: 'Updated successfully', user: updatedUser });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update user data.' });
+  }
+});
+
+// Your existing endpoints (item, balance, deposit, withdraw, buy, etc.)
 
 
 // Start server
