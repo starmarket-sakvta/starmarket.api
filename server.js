@@ -2,7 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const inventoryRoutes = require('./routes/inventory'); 
 
 const app = express();
 app.use(bodyParser.json());
@@ -15,8 +14,6 @@ mongoose
   .connect(uri)
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('Failed to connect to MongoDB:', err));
-// Routes
-app.use(inventoryRoutes); // Include new inventory route
 
 // Item Schema
 const itemSchema = new mongoose.Schema({
