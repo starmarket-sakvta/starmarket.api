@@ -248,12 +248,20 @@ app.put('/user/update', async (req, res) => {
 
 // Your existing endpoints (item, balance, deposit, withdraw, buy, etc.)
 
+let cache = {};
+
 app.get("/inventory/:steamId", async (req, res) => {
     try {
         const { steamId } = req.params;
-        const url = `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000`;
+        const url = `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000&t=${Date.now()}`;
         
+        // Хэрэглэгчийн inventory cache-д байгаа эсэхийг шалгана
+        if (cache[steamId] && (Date.now() - cache[steamId].timestamp < 60000)) {
+            return res.json(cache[steamId].data);
+        }
+
         const response = await axios.get(url);
+        cache[steamId] = { data: response.data, timestamp: Date.now() };
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch inventory" });
