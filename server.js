@@ -248,32 +248,17 @@ app.put('/user/update', async (req, res) => {
 
 // Your existing endpoints (item, balance, deposit, withdraw, buy, etc.)
 
-// ✅ Inventory Route (Uses Redis Sessions)
-app.get('/inventory', async (req, res) => {
-    if (!req.session.steamId) return res.status(401).json({ error: "Not logged in" });
-
-    console.log("🛠️ Fetching inventory for:", req.session.steamId);
-    console.log("🔹 Sending Cookies:", req.session.steamCookies);
-
+app.get("/inventory/:steamId", async (req, res) => {
     try {
-        const inventoryUrl = `https://steamcommunity.com/inventory/${req.session.steamId}/730/2?l=english&count=1000`;
-        const response = await axios.get(inventoryUrl, {
-            headers: {
-                'Cookie': req.session.steamCookies,
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:94.0) Gecko/20100101 Firefox/94.0',
-                'Accept': 'application/json, text/javascript, */*; q=0.01',
-            },
-            withCredentials: true,
-        });
-
-        console.log("✅ Inventory fetched successfully!");
+        const { steamId } = req.params;
+        const url = `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000`;
+        
+        const response = await axios.get(url);
         res.json(response.data);
-    } catch (err) {
-        console.error("⚠️ Inventory Fetch Error:", err.message);
+    } catch (error) {
         res.status(500).json({ error: "Failed to fetch inventory" });
     }
 });
-
 
 // Start server
 const PORT = process.env.PORT || 3000;
