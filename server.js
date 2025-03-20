@@ -96,7 +96,16 @@ app.delete('/remove_item/:assetId', async (req, res) => {
     res.status(500).json({ error: 'Failed to remove item.' });
   }
 });
+const orderSchema = new mongoose.Schema({
+  itemId: { type: String, required: true },
+  buyerId: { type: String, required: true },
+  sellerId: { type: String, required: true },
+  price: { type: Number, required: true },
+  status: { type: String, enum: ['pending', 'completed', 'canceled'], default: 'pending' },
+  timestamp: { type: Date, default: Date.now }
+});
 
+const Order = mongoose.model('Order', orderSchema);
 app.post('/buy', async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -106,17 +115,34 @@ app.post('/buy', async (req, res) => {
 
     const buyer = await Balance.findOne({ steamId: buyerId }).session(session);
     const seller = await Balance.findOne({ steamId: sellerId }).session(session);
+    const item = await Item.findOne({ assetId: itemId }).session(session);
 
     if (!buyer || !seller) throw new Error('User not found');
+    if (!item) throw new Error('Item not found');
     if (buyer.balance < price) throw new Error('Insufficient balance');
 
-    // 🔸 Deduct from buyer
+    // 🔸 Худалдан авагчийн баланс хасах
     buyer.balance -= price;
     buyer.transactions.push({ type: 'purchase', amount: price, status: 'completed' });
 
-    // 🔸 Add to seller
+    // 🔸 Худалдагчийн баланс нэмэх
     seller.balance += price;
     seller.transactions.push({ type: 'sale', amount: price, status: 'completed' });
+
+    // 🔸 Item-ийг market-ээс устгах
+    await Item.deleteOne({ assetId: itemId }).session(session);
+
+    // 🔸 Захиалгыг `orders` collection-д хадгалах
+    const newOrder = new Order({
+      itemId: itemId,
+      buyerId: buyerId,
+      sellerId: sellerId,
+      price: price,
+      status: 'pending', // Захиалга эхэлсэн төлөв
+      timestamp: new Date()
+    });
+
+    await newOrder.save({ session });
 
     await buyer.save({ session });
     await seller.save({ session });
