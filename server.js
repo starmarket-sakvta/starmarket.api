@@ -157,6 +157,17 @@ app.post('/buy', async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
+app.get('/orders/:steamId', async (req, res) => {
+  try {
+    const { steamId } = req.params;
+    const orders = await Order.find({ $or: [{ buyerId: steamId }, { sellerId: steamId }] });
+    res.status(200).json(orders);
+  } catch (err) {
+    console.error('Error fetching orders:', err);
+    res.status(500).json({ error: 'Failed to fetch orders.' });
+  }
+});
+
 
 
 // Get selling (i.e. published) items for a specific user.
