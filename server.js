@@ -2,13 +2,13 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-
+require('dotenv').config(); // 🔹 энэ мөрийг хамгийн эхэнд нэм
 const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
 // MongoDB connection
-require('dotenv').config(); // 🔹 энэ мөрийг хамгийн эхэнд нэм
+
 
 const uri = process.env.MONGO_URI; // 🔐 URI-г .env-ээс авна
 
