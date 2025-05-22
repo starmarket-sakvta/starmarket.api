@@ -8,7 +8,9 @@ app.use(bodyParser.json());
 app.use(cors());
 
 // MongoDB connection
-const uri = "mongodb+srv://user2:Davaa123@star.kihsh.mongodb.net/?retryWrites=true&w=majority&appName=star";
+require('dotenv').config(); // 🔹 энэ мөрийг хамгийн эхэнд нэм
+
+const uri = process.env.MONGO_URI; // 🔐 URI-г .env-ээс авна
 
 mongoose
   .connect(uri)
