@@ -130,7 +130,11 @@ app.post('/buy', async (req, res) => {
     seller.transactions.push({ type: 'sale', amount: price, status: 'completed' });
 
     // 🔸 Item-ийг market-ээс устгах
-    await Item.deleteOne({ assetId: itemId }).session(session);
+    await Item.findOneAndUpdate(
+  { assetId: itemId },
+  { published: false },
+  { session }
+);
 
     // 🔸 Захиалгыг `orders` collection-д хадгалах
     const newOrder = new Order({
