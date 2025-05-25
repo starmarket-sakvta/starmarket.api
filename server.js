@@ -319,6 +319,87 @@ app.get("/inventory/:steamId", async (req, res) => {
     }
 });
 
+
+
+app.post('/create_offer', async (req, res) => {
+  const axios = require('axios');
+  try {
+    const { sellerId, buyerId, assetId } = req.body;
+
+    // 1. User-уудын мэдээлэл авах
+    const seller = await User.findOne({ steamId: sellerId });
+    const buyer = await User.findOne({ steamId: buyerId });
+
+    if (!seller || !buyer) {
+      return res.status(404).json({ error: 'Seller or Buyer not found' });
+    }
+
+    // 2. Buyer-ийн tradeUrl-оос partner, token гаргаж авах
+    const tradeUrl = buyer.tradeUrl;
+    const urlObj = new URL(tradeUrl);
+    const partner = urlObj.searchParams.get('partner');
+    const token = urlObj.searchParams.get('token');
+
+    if (!partner || !token) {
+      return res.status(400).json({ error: 'Invalid trade URL' });
+    }
+
+    // 3. Offer үүсгэх payload
+    const payload = {
+      "partner": partner,
+      "token": token,
+      "items_to_give": [
+        {
+          "appid": 730,
+          "contextid": "2",
+          "assetid": assetId
+        }
+      ],
+      "message": "Thanks for your purchase from StarMarket!",
+    };
+
+    // 4. Steam API руу хүсэлт илгээх
+    const response = await axios.post(`https://api.steampowered.com/IEconService/SendTradeOffer/v1/`, null, {
+      params: {
+        key: seller.apiKey,
+        trade_offer_access_token: token,
+        partner: partner,
+        json_tradeoffer: JSON.stringify({
+          newversion: true,
+          version: 2,
+          me: {
+            assets: [{
+              appid: 730,
+              contextid: "2",
+              assetid: assetId
+            }],
+            currency: [],
+            ready: false
+          },
+          them: {
+            assets: [],
+            currency: [],
+            ready: false
+          }
+        }),
+        message: payload.message
+      }
+    });
+
+    // 5. Хариу илгээх
+    if (response.data && response.data.response && response.data.response.tradeofferid) {
+      return res.json({ success: true, tradeOfferId: response.data.response.tradeofferid });
+    } else {
+      return res.status(400).json({ success: false, error: 'Trade offer not created' });
+    }
+
+  } catch (err) {
+    console.error('Trade offer creation failed:', err);
+    res.status(500).json({ error: 'Server error creating trade offer' });
+  }
+});
+
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
