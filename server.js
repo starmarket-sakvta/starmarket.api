@@ -256,7 +256,7 @@ const userSchema = new mongoose.Schema({
   apiKey: { type: String, default: "" },
   email: { type: String, default: "" },
   bankAccount: { type: String, default: "" }
-});
+}, { timestamps: true }); // ⬅️ add this
 
 const User = mongoose.model('User', userSchema);
 
@@ -277,14 +277,22 @@ app.put('/user/update', async (req, res) => {
     const { steamId, tradeUrl, apiKey, email, bankAccount } = req.body;
     if (!steamId) return res.status(400).json({ error: 'Steam ID required.' });
 
+    // 🔍 зөвхөн ирсэн утгуудыг update-д оруулах
+    const updateFields = {};
+    if (tradeUrl !== undefined) updateFields.tradeUrl = tradeUrl;
+    if (apiKey !== undefined) updateFields.apiKey = apiKey;
+    if (email !== undefined) updateFields.email = email;
+    if (bankAccount !== undefined) updateFields.bankAccount = bankAccount;
+
     const updatedUser = await User.findOneAndUpdate(
       { steamId },
-      { tradeUrl, apiKey, email, bankAccount },
+      updateFields,
       { new: true, upsert: true }
     );
 
     res.status(200).json({ message: 'Updated successfully', user: updatedUser });
   } catch (err) {
+    console.error('❌ Failed to update user:', err);
     res.status(500).json({ error: 'Failed to update user data.' });
   }
 });
