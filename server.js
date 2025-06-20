@@ -49,7 +49,7 @@ app.get("/auth/steam/callback", async (req, res) => {
 
 // 🍪 Cookie-г хадгалах API
 app.post("/auth/steam/session", async (req, res) => {
-  const { steamId, sessionid, steamLogin, steamLoginSecure } = req.body;
+  const { steamId, sessionid, steamLoginSecure } = req.body;
   if (!steamId || !sessionid || !steamLoginSecure) {
     return res.status(400).send("Missing cookies");
   }
@@ -58,7 +58,6 @@ app.post("/auth/steam/session", async (req, res) => {
     { steamId },
     {
       sessionid,
-      steamLogin,
       steamLoginSecure,
       updatedAt: new Date(),
     },
@@ -552,7 +551,7 @@ app.post("/trade/create", async (req, res) => {
           "Content-Type": "application/x-www-form-urlencoded",
           Referer: "https://steamcommunity.com/tradeoffer/new/",
           Origin: "https://steamcommunity.com",
-          Cookie: `sessionid=${session.sessionid}; steamLoginSecure=${session.steamLoginSecure}; steamLogin=${session.steamLogin};`,
+          Cookie: `sessionid=${session.sessionid}; steamLoginSecure=${session.steamLoginSecure};`,
         },
 
         body: new URLSearchParams({
@@ -570,11 +569,10 @@ app.post("/trade/create", async (req, res) => {
 
     const text = await response.text();
 
-    console.log("📥 Steam response status:", response.status);
-    console.log("📥 Steam response body:", text);
+    console.error("⚠️ Steam trade error details:");
+    console.error("Headers:", response.headers.raw());
     console.log("🚀 Sending trade with data:");
     console.log("sessionid:", session.sessionid);
-    console.log("cookie:", `sessionid=${session.sessionid}; steamLogin=...`);
     console.log("partner:", partner);
     console.log("token:", token);
     console.log("assetid:", item.assetid);
