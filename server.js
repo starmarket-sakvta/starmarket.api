@@ -500,9 +500,9 @@ app.put("/order/complete/:id", async (req, res) => {
 const fetch = require("node-fetch");
 
 app.post("/trade/create", async (req, res) => {
-  const { sellerSteamId, buyerTradeUrl, item } = req.body;
+  const { sellerSteamId, buyerId, buyerTradeUrl, item } = req.body;
 
-  if (!sellerSteamId || !buyerTradeUrl || !item || !item.assetid) {
+  if (!sellerSteamId || !buyerId || !buyerTradeUrl || !item || !item.assetid) {
     return res.status(400).send("❌ Invalid trade request");
   }
 
@@ -511,16 +511,14 @@ app.post("/trade/create", async (req, res) => {
     return res.status(404).send("❌ Steam session not found for seller");
   }
 
-  const partnerMatch = buyerTradeUrl.match(/partner=(\d+)/);
+  // buyerTradeUrl-с токен авах
   const tokenMatch = buyerTradeUrl.match(/token=([\w-]+)/);
-
-  if (!partnerMatch || !tokenMatch) {
-    return res.status(400).send("❌ Invalid trade URL");
+  if (!tokenMatch) {
+    return res.status(400).send("❌ Invalid trade URL (token not found)");
   }
-
-  const partner = partnerMatch[1];
   const token = tokenMatch[1];
 
+  // Trade payload бэлдэх
   const tradeOfferPayload = {
     newversion: true,
     version: 2,
@@ -548,16 +546,15 @@ app.post("/trade/create", async (req, res) => {
       {
         method: "POST",
         headers: {
-  "Content-Type": "application/x-www-form-urlencoded",
-  "Origin": "https://steamcommunity.com",
-  "Referer": `https://steamcommunity.com/tradeoffer/new/?partner=${partner}`,
-  "Cookie": `sessionid=${session.sessionid}; steamLoginSecure=${loginSecureDecoded};`,
-},
-
+          "Content-Type": "application/x-www-form-urlencoded",
+          Referer: "https://steamcommunity.com/tradeoffer/new/",
+          Origin: "https://steamcommunity.com",
+          Cookie: `sessionid=${session.sessionid}; steamLoginSecure=${session.steamLoginSecure};`,
+        },
         body: new URLSearchParams({
           sessionid: session.sessionid,
           serverid: "1",
-          partner: partner,
+          partner: buyerId,
           tradeoffermessage: "Trade from StarMarket",
           json_tradeoffer: JSON.stringify(tradeOfferPayload),
           trade_offer_create_params: JSON.stringify({
@@ -569,25 +566,20 @@ app.post("/trade/create", async (req, res) => {
 
     const text = await response.text();
 
-    console.error("⚠️ Steam trade error details:");
-    console.error("Headers:", response.headers.raw());
-    console.log("🚀 Sending trade with data:");
+    console.log("🚀 Trade Offer Sent:");
     console.log("sessionid:", session.sessionid);
-    console.log("partner:", partner);
+    console.log("buyerId:", buyerId);
     console.log("token:", token);
     console.log("assetid:", item.assetid);
-    console.log(
-      "full trade payload:",
-      JSON.stringify(tradeOfferPayload, null, 2)
-    );
 
     if (response.status === 200 && text.includes("tradeofferid")) {
       return res.status(200).send("✅ Trade offer created");
     } else {
+      console.error("❌ Trade creation failed:", text);
       return res.status(500).send("❌ Trade offer creation failed");
     }
   } catch (err) {
-    console.error("❌ Exception caught in fetch:", err);
+    console.error("❌ Error sending trade offer:", err);
     return res.status(500).send("❌ Internal server error");
   }
 });
