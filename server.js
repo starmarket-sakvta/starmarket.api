@@ -551,7 +551,9 @@ app.post("/trade/create", async (req, res) => {
           "Content-Type": "application/x-www-form-urlencoded",
           Referer: "https://steamcommunity.com/tradeoffer/new/",
           Origin: "https://steamcommunity.com",
-          Cookie: `sessionid=${session.sessionid}; steamLoginSecure=${session.steamLoginSecure};`,
+          Cookie: `sessionid=${
+            session.sessionid
+          }; steamLoginSecure=${decodeURIComponent(session.steamLoginSecure)};`,
         },
 
         body: new URLSearchParams({
